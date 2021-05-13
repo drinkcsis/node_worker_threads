@@ -8,3 +8,10 @@ And his counter will have a count of people in the hall.
 I decided to use nodeJS worker_threads for resolving this task. \
 Each person is new Worker. They "talk" to each other creating a pairs, decide "who should sit down" and do this is asynchronously (like a real people).\
 Some of them have 'setTimeout' to imitate some delays in conversations.
+
+Start Server:
+>`nvm use v12.*` Use nodejs v12 or ^\
+>`node server.js`
+
+Start Front-end
+>`npm run start`
