@@ -11,18 +11,18 @@ threads.parentPort.on('message', message => {
         console.error('Unknown message type...')
     }
 
-    if (message.type === 'ThisIsPool') {
-        poolIds = message.data;
-        imitateTimeForFindingPair();
+    if (message.type === 'StartNewRound') {
+        poolIds = message.poolIds;
+        findPair();
     }
 
-    if (message.type === 'IAmYourPair') {
-        pairId = message.data;
+    if (message.type === 'PairId') {
+        pairId = message.pairId;
         threads.parentPort.postMessage({ type: 'IFoundPair' })
         whoShouldSit();
     }
 
-    if (message.type === 'getMyCounter') {
+    if (message.type === 'SendMyCounter') {
         counter += message.data;
     }
 
@@ -30,7 +30,7 @@ threads.parentPort.on('message', message => {
         threads.parentPort.postMessage({
             type: 'TRANSFER', threadId: message.data,
             data: {
-                type: "getMyCounter", data: counter
+                type: "SendMyCounter", data: counter
             }
         });
         threads.parentPort.postMessage({ type: "IAmSit" })
@@ -41,6 +41,16 @@ threads.parentPort.on('message', message => {
     }    
 });
 
+function findPair() {
+    const delayTime = Math.floor(Math.random() * 10) > 5 ? Math.floor(Math.random() * 100) : 0;
+    threads.parentPort.postMessage({ type: 'Timer', data: delayTime });
+    setTimeout(function () {
+        connectWithOwnPair()
+        connectedWithPair = true;
+        whoShouldSit();
+    }, delayTime);
+}
+
 function connectWithOwnPair() {
     if (poolIds.length > 1) {
         const myIndex = poolIds.indexOf(threads.threadId.toString());
@@ -49,20 +59,10 @@ function connectWithOwnPair() {
         threads.parentPort.postMessage({
             type: 'TRANSFER', threadId: poolIds[parentIndex],
             data: {
-                type: "IAmYourPair", data: threads.threadId
+                type: "PairId", pairId: threads.threadId
             }
         });
     }
-}
-
-function imitateTimeForFindingPair() {
-    const delayTime = Math.floor(Math.random() * 10) > 5 ? Math.floor(Math.random() * 100) : 0;
-    threads.parentPort.postMessage({ type: 'Timer', data: delayTime });
-    setTimeout(function () {
-        connectWithOwnPair()
-        connectedWithPair = true;
-        whoShouldSit();
-    }, delayTime);
 }
 
 function whoShouldSit() {
@@ -84,7 +84,7 @@ function whoSitBasedOnId() {
         threads.parentPort.postMessage({
             type: 'TRANSFER', threadId: pairId,
             data: {
-                type: "getMyCounter", data: counter
+                type: "SendMyCounter", data: counter
             }
         });
         threads.parentPort.postMessage({ type: "IAmSit" })

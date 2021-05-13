@@ -62,7 +62,7 @@ function assignPersonListeners(worker) {
 
         if (message.type === 'TRANSFER') {
             const threadId = message.threadId;
-            if (message.data.type === 'getMyCounter') {
+            if (message.data.type === 'SendMyCounter') {
                 socketEmit('changeCounter', { id: threadId, counter: message.data.data })
             }
             pool[threadId].postMessage(message.data);
@@ -123,7 +123,7 @@ function startRound() {
         lastPeople.postMessage({ type: "SayYourCounter" });
         return true;
     }
-    
+
     if (poolIds.length === 0) {
         log('Empty Auditory');
         socketEmit('Finish', null)
@@ -145,7 +145,7 @@ function startRound() {
 
     poolIds.forEach(id => {
         socketEmit('changeStatus', { id: id, status:'finding' })
-        pool[id].postMessage({ type: "ThisIsPool", data: poolIds });
+        pool[id].postMessage({ type: "StartNewRound", poolIds });
     })
     log(`Round: ${roundCounter++}, roundPeople: ${roundPeople}, shiftedPeople: ${Object.keys(peplesWithoutPair).length}`);
     
