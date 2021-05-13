@@ -15,11 +15,9 @@ threads.parentPort.on('message', message => {
         poolIds = message.data;
 
         setTimeout(function () {
-
             connectWithOwnPair()
             connectedWithPair = true;
             whoShouldSit();
-
         }, imitateTimeForFindingPair())
     }
 
@@ -31,6 +29,16 @@ threads.parentPort.on('message', message => {
 
     if (message.type === 'getMyCounter') {
         counter += message.data;
+    }
+
+    if (message.type === 'youShouldSit') {
+        threads.parentPort.postMessage({
+            type: 'TRANSFER', threadId: message.data,
+            data: {
+                type: "getMyCounter", data: counter
+            }
+        });
+        threads.parentPort.postMessage({ type: "IAmSit" })
     }
 
     if (message.type === 'SayYourCounter') {
@@ -53,7 +61,7 @@ function connectWithOwnPair() {
 }
 
 function imitateTimeForFindingPair() {
-    const timer = Math.floor(Math.random() * 10) > 5 ? Math.floor(Math.random() * 10000) : 0;
+    const timer = Math.floor(Math.random() * 10) > 5 ? Math.floor(Math.random() * 100) : 0;
     threads.parentPort.postMessage({ type: 'Timer', data: timer });
     return timer
 }
@@ -61,20 +69,38 @@ function imitateTimeForFindingPair() {
 function whoShouldSit() {
     //Run only if we recived partnerId and sent own id to partner.
     if (pairId && connectedWithPair) {
-        if (threads.threadId < pairId) {
-            threads.parentPort.postMessage({
-                type: 'TRANSFER', threadId: pairId,
-                data: {
-                    type: "getMyCounter", data: counter
-                }
-            });
-            threads.parentPort.postMessage({ type: "IAmSit" })
-        }
-    
+       
+        whoSitBasedOnDice()
+        // whoSitBasedOnId()
+
         //Reset flags for next round
         connectedWithPair = false
         pairId = null
 
+    }
+}
+
+function whoSitBasedOnId() {
+    if (threads.threadId < pairId) {
+        threads.parentPort.postMessage({
+            type: 'TRANSFER', threadId: pairId,
+            data: {
+                type: "getMyCounter", data: counter
+            }
+        });
+        threads.parentPort.postMessage({ type: "IAmSit" })
+    }
+}
+
+function whoSitBasedOnDice() {
+    if (threads.threadId < pairId) {
+        const dice = Math.floor(Math.random() * 2);
+        threads.parentPort.postMessage({
+            type: 'TRANSFER', threadId: dice ? pairId : threads.threadId,
+            data: {
+                type: "youShouldSit", data: dice ? threads.threadId : pairId
+            }
+        });
     }
 }
 

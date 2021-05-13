@@ -1,5 +1,6 @@
 // @ts-ignore
 const threads = require('worker_threads');
+const { performance } = require('perf_hooks');
 const { Worker } = threads;
 
 
@@ -10,18 +11,36 @@ let sitPeopleCount = 0
 let confirmedHisPair = 0
 let roundPeople = 0
 let waitingTime = 0
+let _socket = null
+let peopleCount = 0
 
-const peopleCount = Math.floor(Math.random() * 1000);
+function reset(socket) {
+    _socket = socket;
+    peopleCount = Math.floor(Math.random() * 400);
+    peplesWithoutPair = {};
+    roundCounter = 0;
+    sitPeopleCount = 0
+    confirmedHisPair = 0
+    roundPeople = 0
+    waitingTime = 0
+    Object.keys(pool).forEach(i => {
+        pool[i].terminate();
+    });
+    pool = {}
 
-init();
+    socketEmit('PeopleCount', peopleCount)
+    log(`\n\npeopleCount: ${peopleCount} \n`);
+}
 
-function init() {
-    console.log(`peopleCount: ${peopleCount} \n`);
+function DirectorInit(socket) {
+    reset(socket);
 
     console.time('createWorkers Time')
     console.time('CommonTime')
+    
     for (let i = 0; i < peopleCount ; i++) {
         const worker = new Worker('./people.js');
+        socketEmit('NewPerson', { id: worker.threadId })
         pool[worker.threadId] = worker;
 
         worker.on('message', (message) => {
@@ -31,15 +50,20 @@ function init() {
 
             if (message.type === 'TRANSFER') {
                 const threadId = message.threadId;
+                if (message.data.type === 'getMyCounter') {
+                    socketEmit('changeCounter', { id: threadId, counter: message.data.data })
+                }
                 pool[threadId].postMessage(message.data);
             }
 
             if (message.type === 'IFoundPair') {
+                socketEmit('changeStatus', { id: worker.threadId, status: 'found' })
                 confirmedHisPair++;
                 startRound();
             }
 
             if (message.type === 'IAmSit') {
+                socketEmit('changeStatus', { id: worker.threadId, status: 'sit' })
                 sitPeopleCount++;
 
                 delete pool[worker.threadId];
@@ -49,11 +73,10 @@ function init() {
             }
 
             if (message.type === 'IAmLastPerson') {
-                console.log(`Count of people is : ${message.data + Object.keys(peplesWithoutPair).length} from ${peopleCount}`);
+                socketEmit('changeStatus', { id: worker.threadId, status: 'result' })
+                log(`Count of people is : ${message.data + Object.keys(peplesWithoutPair).length} from ${peopleCount}`);
                 console.timeEnd('CommonTime')
-                console.log(`waitingTime: ${waitingTime / 1000}s`)
-                // @ts-ignore
-                process.exit(0);
+                log(`Sum of waitingTime all people: ${waitingTime / 1000}s`)
             }
 
             if (message.type === 'Timer') {
@@ -74,23 +97,24 @@ function startRound() {
         return
     }
 
-    if (roundCounter > 0)
-        console.timeEnd('RoundTime')
-    console.time('RoundTime')
+    if (roundCounter > 0) {
+        log(`RoundTimer: ${endTimer('RoundTime')}s`);
+    }
+    startTimer('RoundTime')
 
+    //Add peplesWithoutPair from previous round if exists
     pool = { ...pool, ...peplesWithoutPair };
+
     const poolIds = Object.keys(pool);
 
     if (poolIds.length === 0) {
-        console.log('Empty Auditory');
-        // @ts-ignore
-        process.exit(0);
+        log('Empty Auditory');
+        return true;
     }
 
 
     if (poolIds.length === 1) {
-        console.log("Calculation eneded! \n");
-        // @ts-ignore
+        log("Calculation eneded! \n");
         const lastPeople = Object.values(pool)[0];
         lastPeople.postMessage({ type: "SayYourCounter" });
         return true;
@@ -100,6 +124,7 @@ function startRound() {
     confirmedHisPair = 0;
     peplesWithoutPair = {};
 
+    //Check if we have peplesWithoutPair and exclude him from this round
     if (poolIds.length % 2 === 1) {
         const shiftedId = poolIds.shift();
         peplesWithoutPair[shiftedId] = Object.assign(pool[shiftedId]);
@@ -108,7 +133,38 @@ function startRound() {
     roundPeople = Object.keys(pool).length;
 
     poolIds.forEach(id => {
+        socketEmit('changeStatus', { id: id, status:'finding' })
         pool[id].postMessage({ type: "ThisIsPool", data: poolIds });
     })
-    console.log(`Round: ${roundCounter++}, roundPeople: ${roundPeople}, shiftedPeople: ${Object.keys(peplesWithoutPair).length}`);
+    const roundInfo = `Round: ${roundCounter++}, roundPeople: ${roundPeople}, shiftedPeople: ${Object.keys(peplesWithoutPair).length}`;
+   
+    socketEmit('reoundPersons', poolIds)
+    log(roundInfo);
+    
 }
+
+function socketEmit(messageType, data) {
+    _socket.emit(messageType, data)
+}
+
+function log(data) {
+    console.log(data)
+    socketEmit('log', data)
+}
+
+const timers = {};
+
+function startTimer(label) {
+    timers[label] = performance.now();
+}
+
+function endTimer(label) {
+    if (!timers[label]) {
+        return '--'
+    }
+
+    const time = (performance.now() - timers[label]) / 1000
+    delete timers[label];
+    return time.toFixed(2);
+}
+module.exports = DirectorInit;
