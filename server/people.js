@@ -13,12 +13,7 @@ threads.parentPort.on('message', message => {
 
     if (message.type === 'ThisIsPool') {
         poolIds = message.data;
-
-        setTimeout(function () {
-            connectWithOwnPair()
-            connectedWithPair = true;
-            whoShouldSit();
-        }, imitateTimeForFindingPair())
+        imitateTimeForFindingPair();
     }
 
     if (message.type === 'IAmYourPair') {
@@ -61,9 +56,13 @@ function connectWithOwnPair() {
 }
 
 function imitateTimeForFindingPair() {
-    const timer = Math.floor(Math.random() * 10) > 5 ? Math.floor(Math.random() * 100) : 0;
-    threads.parentPort.postMessage({ type: 'Timer', data: timer });
-    return timer
+    const delayTime = Math.floor(Math.random() * 10) > 5 ? Math.floor(Math.random() * 100) : 0;
+    threads.parentPort.postMessage({ type: 'Timer', data: delayTime });
+    setTimeout(function () {
+        connectWithOwnPair()
+        connectedWithPair = true;
+        whoShouldSit();
+    }, delayTime);
 }
 
 function whoShouldSit() {

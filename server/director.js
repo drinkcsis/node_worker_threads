@@ -32,7 +32,7 @@ function HallInit(socket) {
 
 
 function resetHall() {
-    peopleCount = Math.floor(Math.random() * 400);
+    peopleCount = Math.floor(Math.random() * 1000);
     peplesWithoutPair = {};
     roundCounter = 0;
     sitPeopleCount = 0
@@ -117,17 +117,16 @@ function startRound() {
 
     const poolIds = Object.keys(pool);
 
-    if (poolIds.length === 0) {
-        log('Empty Auditory');
-        socketEmit('Finish', null)
-        return true;
-    }
-
-
     if (poolIds.length === 1) {
         log("Calculation eneded! \n");
         const lastPeople = Object.values(pool)[0];
         lastPeople.postMessage({ type: "SayYourCounter" });
+        return true;
+    }
+    
+    if (poolIds.length === 0) {
+        log('Empty Auditory');
+        socketEmit('Finish', null)
         return true;
     }
 
@@ -141,16 +140,14 @@ function startRound() {
         peplesWithoutPair[shiftedId] = Object.assign(pool[shiftedId]);
         delete pool[shiftedId];
     }
+    socketEmit('reoundPersons', poolIds)
     roundPeople = Object.keys(pool).length;
 
     poolIds.forEach(id => {
         socketEmit('changeStatus', { id: id, status:'finding' })
         pool[id].postMessage({ type: "ThisIsPool", data: poolIds });
     })
-    const roundInfo = `Round: ${roundCounter++}, roundPeople: ${roundPeople}, shiftedPeople: ${Object.keys(peplesWithoutPair).length}`;
-   
-    socketEmit('reoundPersons', poolIds)
-    log(roundInfo);
+    log(`Round: ${roundCounter++}, roundPeople: ${roundPeople}, shiftedPeople: ${Object.keys(peplesWithoutPair).length}`);
     
 }
 
