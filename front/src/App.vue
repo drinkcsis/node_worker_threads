@@ -4,7 +4,6 @@
       <span>How many people in the Hall</span>
     </header>
     <main>
-      <button @click="run">RUN</button>
       <div class='wrapper'>
         <round-info :socket="socket"></round-info>
         <hall :socket="socket"></hall>
@@ -14,6 +13,7 @@
 </template>
 
 <script>
+// @ts-nocheck
 import Hall from './components/Hall'
 import RoundInfo from './components/RoundInfo'
 import io from 'socket.io-client';
@@ -33,24 +33,24 @@ export default {
     }
   },
 
-  methods: {
-    run() {
-      this.socket.emit('run')
-    }
-  },
-
   created: function () {
-    console.log('Starting Connection to socket server')
     this.socket = io('ws://localhost:3000', { transports: ["websocket"] })
-
-    this.socket.on('connect', () => {
-        console.log('connected')
-    });
   }
 }
 </script>
 
 <style>
+.run-btn{
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 30px;
+
+  width: 130px;
+  height: 40px;
+  border: 2px solid #656565;
+  font-size: 15px;
+  font-weight: bold;
+}
 .wrapper{
   padding: 20px 20px;
 }

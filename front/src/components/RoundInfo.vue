@@ -1,5 +1,6 @@
 <template>
   <div class='round'>
+    <button class='run-btn' @click="run" :disabled="disabled">RUN</button>
     <textarea v-model="getLog" ></textarea>
   </div>
 </template>
@@ -13,7 +14,8 @@ export default {
   },
   data () {
     return {
-      log: []
+      log: [],
+      disabled: true
     }
   },
 
@@ -23,10 +25,29 @@ export default {
     }
   },
 
+  methods: {
+    run() {
+      this.socket.emit('run')
+      this.disabled = true
+    }
+  },
+
   created: function () {
     this.socket.on('log', data => {
       this.log.push(data)
-  });
+    });
+
+    this.socket.on('connect', () => {
+        this.disabled = false
+    });
+
+    this.socket.on('disconnect', () => {
+        this.disabled = true
+    });
+
+    this.socket.on('Finish', () => {
+        this.disabled = false
+    });
   }
 }
 </script>

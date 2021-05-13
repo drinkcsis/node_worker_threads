@@ -6,15 +6,13 @@ var io = require('socket.io')(server);
 const DirectorInit = require('./director')
 
 io.on("connection", socket => {
-    console.log('connected');
+    console.log('Connected...');
 
-    socket.on('run', data => {
-
+    socket.on('run', () => {
         socket.emit('run');
         DirectorInit(socket);
 
     })
 });
-
 
 server.listen(3000);

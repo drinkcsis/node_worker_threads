@@ -73,9 +73,10 @@ function DirectorInit(socket) {
             }
 
             if (message.type === 'IAmLastPerson') {
-                socketEmit('changeStatus', { id: worker.threadId, status: 'result' })
-                log(`Count of people is : ${message.data + Object.keys(peplesWithoutPair).length} from ${peopleCount}`);
                 console.timeEnd('CommonTime')
+                socketEmit('changeStatus', { id: worker.threadId, status: 'result' })
+                socketEmit('Finish', null)
+                log(`Count of people is : ${message.data + Object.keys(peplesWithoutPair).length} from ${peopleCount}`);
                 log(`Sum of waitingTime all people: ${waitingTime / 1000}s`)
             }
 
@@ -109,6 +110,7 @@ function startRound() {
 
     if (poolIds.length === 0) {
         log('Empty Auditory');
+        socketEmit('Finish', null)
         return true;
     }
 
