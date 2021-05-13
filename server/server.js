@@ -3,14 +3,14 @@ var express = require('express');
 var app = express();
 var server = require('http').createServer(app);
 var io = require('socket.io')(server);
-const DirectorInit = require('./director')
+const HallInit = require('./director')
 
 io.on("connection", socket => {
     console.log('Connected...');
 
     socket.on('run', () => {
         socket.emit('run');
-        DirectorInit(socket);
+        HallInit(socket);
 
     })
 });

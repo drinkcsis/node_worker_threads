@@ -14,8 +14,24 @@ let waitingTime = 0
 let _socket = null
 let peopleCount = 0
 
-function reset(socket) {
+function HallInit(socket) {
+    startTimer('Excecution Time')
+
     _socket = socket;
+    resetHall();
+
+    startTimer('createWorkersTime')
+    for (let i = 0; i < peopleCount ; i++) {
+        const worker = addPersonToHall();
+        assignPersonListeners(worker)        
+    }
+    endTimer('createWorkersTime', 'Create Workers Time: %t s');
+    
+    startRound();
+}
+
+
+function resetHall() {
     peopleCount = Math.floor(Math.random() * 400);
     peplesWithoutPair = {};
     roundCounter = 0;
@@ -32,61 +48,54 @@ function reset(socket) {
     log(`\n\npeopleCount: ${peopleCount} \n`);
 }
 
-function DirectorInit(socket) {
-    reset(socket);
+function addPersonToHall() {
+    const worker = new Worker('./people.js');
+    socketEmit('NewPerson', { id: worker.threadId })
+    pool[worker.threadId] = worker;
+    return worker;
+}
+function assignPersonListeners(worker) {
+    worker.on('message', (message) => {
+        if (!message.type) {
+            console.error('Unknown message type...')
+        }
 
-    console.time('createWorkers Time')
-    console.time('CommonTime')
-    
-    for (let i = 0; i < peopleCount ; i++) {
-        const worker = new Worker('./people.js');
-        socketEmit('NewPerson', { id: worker.threadId })
-        pool[worker.threadId] = worker;
-
-        worker.on('message', (message) => {
-            if (!message.type) {
-                console.error('Unknown message type...')
+        if (message.type === 'TRANSFER') {
+            const threadId = message.threadId;
+            if (message.data.type === 'getMyCounter') {
+                socketEmit('changeCounter', { id: threadId, counter: message.data.data })
             }
+            pool[threadId].postMessage(message.data);
+        }
 
-            if (message.type === 'TRANSFER') {
-                const threadId = message.threadId;
-                if (message.data.type === 'getMyCounter') {
-                    socketEmit('changeCounter', { id: threadId, counter: message.data.data })
-                }
-                pool[threadId].postMessage(message.data);
-            }
+        if (message.type === 'IFoundPair') {
+            socketEmit('changeStatus', { id: worker.threadId, status: 'found' })
+            confirmedHisPair++;
+            startRound();
+        }
 
-            if (message.type === 'IFoundPair') {
-                socketEmit('changeStatus', { id: worker.threadId, status: 'found' })
-                confirmedHisPair++;
-                startRound();
-            }
+        if (message.type === 'IAmSit') {
+            socketEmit('changeStatus', { id: worker.threadId, status: 'sit' })
+            sitPeopleCount++;
 
-            if (message.type === 'IAmSit') {
-                socketEmit('changeStatus', { id: worker.threadId, status: 'sit' })
-                sitPeopleCount++;
+            delete pool[worker.threadId];
+            worker.terminate();
 
-                delete pool[worker.threadId];
-                worker.terminate();
-                
-                startRound();
-            }
+            startRound();
+        }
 
-            if (message.type === 'IAmLastPerson') {
-                console.timeEnd('CommonTime')
-                socketEmit('changeStatus', { id: worker.threadId, status: 'result' })
-                socketEmit('Finish', null)
-                log(`Count of people is : ${message.data + Object.keys(peplesWithoutPair).length} from ${peopleCount}`);
-                log(`Sum of waitingTime all people: ${waitingTime / 1000}s`)
-            }
+        if (message.type === 'IAmLastPerson') {
+            endTimer('Excecution Time', 'Excecution Time: %t s')
+            socketEmit('changeStatus', { id: worker.threadId, status: 'result' })
+            socketEmit('Finish', null)
+            log(`Count of people is : ${message.data + Object.keys(peplesWithoutPair).length} from ${peopleCount}`);
+            log(`Sum of waitingTime all people: ${waitingTime / 1000}s`)
+        }
 
-            if (message.type === 'Timer') {
-                waitingTime += message.data;
-            }
-        });
-    }
-    console.timeEnd('createWorkers Time')
-    startRound();
+        if (message.type === 'Timer') {
+            waitingTime += message.data;
+        }
+    });
 }
 
 function areWeReadyToNextRound() {
@@ -99,7 +108,7 @@ function startRound() {
     }
 
     if (roundCounter > 0) {
-        log(`RoundTimer: ${endTimer('RoundTime')}s`);
+        endTimer('RoundTime', 'RoundTimer: %t s')
     }
     startTimer('RoundTime')
 
@@ -160,13 +169,18 @@ function startTimer(label) {
     timers[label] = performance.now();
 }
 
-function endTimer(label) {
+function endTimer(label, logMessage = null) {
     if (!timers[label]) {
         return '--'
     }
 
-    const time = (performance.now() - timers[label]) / 1000
+    const time = ((performance.now() - timers[label]) / 1000).toFixed(2)
     delete timers[label];
-    return time.toFixed(2);
+
+    if (logMessage) {
+        log(logMessage.replace('%t', time))
+    }
+
+    return time;
 }
-module.exports = DirectorInit;
+module.exports = HallInit;
