@@ -15,7 +15,3 @@ Start Server:
 
 Start Front-end
 >`npm run start`
-
-
-Used libraries:
-https://github.com/knadh/localStorageDB
